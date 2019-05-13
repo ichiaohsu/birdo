@@ -78,10 +78,10 @@ WSGI_APPLICATION = 'server.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
-        'NAME': 'birdb',
-        'USER': '',
-        'PASSWORD': '',
-        'HOST': '127.0.0.1',
+        'NAME': 'birdo',
+        'USER': 'birdoadmin',
+        'PASSWORD': 'birdo123',
+        'HOST': 'postgis-postgresql',
         'PORT': '5432',
     }
 }

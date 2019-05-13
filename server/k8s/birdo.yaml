@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: birdo-service
+  labels:
+    app: birdo
+    tier: backend
+spec:
+  type: LoadBalancer
+  ports:
+  - name: birdo
+    port: 8000
+    targetPort: 8000
+  selector:
+    app: birdo
+    tier: backend
+---
+apiVersion: extensions/v1beta1
+kind: Deployment
+metadata:
+  name: birdo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: birdo
+      tier: backend
+  template:
+    metadata:
+      labels:
+        app: birdo
+        tier: backend
+    spec:
+      containers:
+        - name: birdo
+          image: docker.io/ichhsu/birdo:v2
+          imagePullPolicy: "IfNotPresent"
+          ports:
+            - containerPort: 8000
