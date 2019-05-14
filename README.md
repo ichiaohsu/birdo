@@ -2,58 +2,80 @@
 birdo is a server/client pair to send sample through protobuf stream.
 
 ## Client
-Client script is in `client` directory. To use it, simple type:
+
+### Prerequisite
+
+Before using the client script, dependencies must be installed. There is a `requirements.txt` in the `client` folder:
+```bash
+pip install -r requirements.txt
+```
+
+### Usage
+
+Client script is in `client` directory. To use it, simply use:
 ```bash
 python client.py
 ```
-The CLI will prompt you to key in the file path and remote server url.
+The CLI will prompt you to key in the file path and remote server url. File path is necessary. Then it will upload the content of the file.
 
-file path is necessary.
 ** Before launching client, there should be a server running to catch the requests.**
 
 ## Server
 
-Server is put in `server` directory. First change directory into `server`.
+Server is in `server` directory. First change directory into `server`.
 
-### Prerequisite
+### Run on MacOS
 
-#### Install dependencies
+1. PostGIS database
+This server use PostGIS function. So there are two things necessary:
+- Install PostGIS
+```bash
+brew install postgis
+```
+- Create PostGIS extension in PostgreSQL server
+Then in postgres CLI type to create extension:
+```postgres
+CREATE EXTENSION postgis;
+```
+
+2. Install dependencies
 ```bash
 pip install -r requirements.txt
 ```
-#### Postgresql server
-This server use PostGIS function. So there are two things necessary:
-1. Install PostGIS
-2. Create PostGIS extension in PostgreSQL server
 
-### Run the server
+3. Run the server
 Then it could be simply run in dev mode by:
 ```bash
 python manage.py runserver
 ```
 
-It could be used with uwsgi
+It could be used with uwsgi as well
 ```bash
 uwsgi --ini uwsgi.ini
 ```
 
-## Use the Docker
-In `server` directory
+### Run on Kubernetes
+
+1. First deploy PostgreSQL with PostGIS
+If you have helm enabled in your kubernetes cluster:
 ```bash
-docker build . -t birdo:v1
+helm install --name postgis --set postgresqlPassword=postgres,postgresqlDataDir="/bitnami/postgresql/data",persistence.storageClass=standard,persistence.size=5Gi,livenessProbe.initialDelaySeconds=120,postgresqlDatabase=birdo,image.registry=registry.weave.nl,image.repository=docker/postgres-postgis,image.tag=latest --set fullnameOverride=postgis stable/postgresql
 ```
 
-## Kubernetes deployment
-
-First deploy PostgreSQL with PostGIS
+If you don't, simply use the template in `server/k8s`:
 ```bash
 kubectl apply -f k8s/postgis.yaml
 ```
-
-Then deploy birdo
+2. Deploy birdo server
 ```bash
 kubectl apply -f k8s/birdo.yaml
 ```
+
+This will create an exposed ip address. You could see the address using:
+```bash
+kubectl get svc
+```
+Use `http://{server-address}:8000` in the client prompt.
 
 ## Questions
 - Explain your database choice 
