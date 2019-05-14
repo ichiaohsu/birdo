@@ -32,8 +32,16 @@ spec:
         tier: backend
     spec:
       containers:
-        - name: birdo
-          image: docker.io/ichhsu/birdo:v2
-          imagePullPolicy: "IfNotPresent"
-          ports:
-            - containerPort: 8000
+      - name: birdo
+        image: docker.io/ichhsu/birdo:v7
+        imagePullPolicy: "IfNotPresent"
+        ports:
+          - containerPort: 8000
+      #   volumeMounts:
+      #   - mountPath: /usr/src/app/birdo/server
+      #     name: birdo
+      #     # subPath: settings.py
+      # volumes:
+      # - configMap:
+      #     name: birdo
+      #   name: birdo

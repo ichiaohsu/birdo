@@ -1,36 +1,50 @@
-apiVersion: v1
-kind: ConfigMap
-metadata:
-  name: postgres-config
-  labels:
-    app: postgres
-data:
-  POSTGRES_DB: birdo
-  POSTGRES_USER: birdoadmin
-  POSTGRES_PASSWORD: birdo123
 ---
-kind: PersistentVolumeClaim
+# Source: postgresql/templates/secrets.yaml
 apiVersion: v1
+kind: Secret
 metadata:
-  name: postgres-pv-claim
+  name: postgis
   labels:
-    app: postgres
+    app: postgresql
+    chart: postgresql-3.18.3
+    release: "release-name"
+    heritage: "Tiller"
+type: Opaque
+data:
+  postgresql-password: "cG9zdGdyZXM="
+---
+# Source: postgresql/templates/svc-headless.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: postgis-headless
+  labels:
+    app: postgresql
+    chart: postgresql-3.18.3
+    release: "release-name"
+    heritage: "Tiller"
 spec:
-  storageClassName: standard
-  accessModes:
-    - ReadWriteOnce
-  resources:
-    requests:
-      storage: 5Gi
+  type: ClusterIP
+  clusterIP: None
+  ports:
+  - name: postgresql
+    port: 5432
+    targetPort: postgresql
+  selector:
+    app: postgresql
+    release: "release-name"
+
 ---
 # Source: postgresql/templates/svc.yaml
 apiVersion: v1
 kind: Service
 metadata:
-  name: postgis-postgresql
+  name: postgis
   labels:
     app: postgresql
-    release: "postgis"
+    chart: postgresql-3.18.3
+    release: "release-name"
+    heritage: "Tiller"
 spec:
   type: ClusterIP
   ports:
@@ -39,37 +53,125 @@ spec:
     targetPort: postgresql
   selector:
     app: postgresql
+    release: "release-name"
     role: master
+
 ---
-apiVersion: extensions/v1beta1
-kind: Deployment
+# Source: postgresql/templates/statefulset.yaml
+apiVersion: apps/v1beta2
+kind: StatefulSet
 metadata:
-  name: postgres
+  name: postgis
+  labels:
+    app: postgresql
+    chart: postgresql-3.18.3
+    release: "release-name"
+    heritage: "Tiller"
 spec:
+  serviceName: postgis-headless
   replicas: 1
+  updateStrategy:
+    type: RollingUpdate
   selector:
     matchLabels:
       app: postgresql
+      release: "release-name"
       role: master
   template:
     metadata:
+      name: postgis
       labels:
         app: postgresql
+        chart: postgresql-3.18.3
+        release: "release-name"
+        heritage: "Tiller"
         role: master
     spec:
+      securityContext:
+        fsGroup: 1001
+      initContainers:
+      - name: init-chmod-data
+        image: docker.io/bitnami/minideb:latest
+        imagePullPolicy: "Always"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+
+        command:
+          - sh
+          - -c
+          - |
+            chown -R 1001:1001 /bitnami
+            if [ -d /bitnami/postgresql/data ]; then
+              chmod  0700 /bitnami/postgresql/data;
+            fi
+        securityContext:
+          runAsUser: 0
+        volumeMounts:
+        - name: data
+          mountPath: /bitnami/postgresql
+          subPath:
       containers:
-        - name: postgres
-          image: docker.io/kartoza/postgis:11.0-2.5
-          imagePullPolicy: "IfNotPresent"
-          ports:
-            - containerPort: 5432
-          envFrom:
-            - configMapRef:
-                name: postgres-config
-          volumeMounts:
-            - mountPath: /var/lib/postgresql/data
-              name: postgredb
+      - name: postgis
+        image: registry.weave.nl/docker/postgres-postgis:latest
+        imagePullPolicy: "Always"
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+
+        securityContext:
+          runAsUser: 1001
+        env:
+        - name: PGDATA
+          value: "/bitnami/postgresql/data"
+        - name: POSTGRES_USER
+          value: "postgres"
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: postgis
+              key: postgresql-password
+        - name: POSTGRES_DB
+          value: "birdo"
+        ports:
+        - name: postgresql
+          containerPort: 5432
+        livenessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready -U "postgres" -d "birdo" -h 127.0.0.1
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        readinessProbe:
+          exec:
+            command:
+            - sh
+            - -c
+            - exec pg_isready -U "postgres" -d "birdo" -h 127.0.0.1
+          initialDelaySeconds: 5
+          periodSeconds: 10
+          timeoutSeconds: 5
+          successThreshold: 1
+          failureThreshold: 6
+        volumeMounts:
+        - name: data
+          mountPath: /bitnami/postgresql
+          subPath:
       volumes:
-        - name: postgredb
-          persistentVolumeClaim:
-            claimName: postgres-pv-claim
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes:
+          - "ReadWriteOnce"
+        resources:
+          requests:
+            storage: "5Gi"
+        storageClassName: "standard"

@@ -25,7 +25,7 @@ SECRET_KEY = 's!^l*ni6khs!u7u6t)+o-)n@%_zj3eg_q0yx$yzm@=j^zd!c8='
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ['*']
 
 
 # Application definition
@@ -79,9 +79,9 @@ DATABASES = {
     'default': {
         'ENGINE': 'django.contrib.gis.db.backends.postgis',
         'NAME': 'birdo',
-        'USER': 'birdoadmin',
-        'PASSWORD': 'birdo123',
-        'HOST': 'postgis-postgresql',
+        'USER': 'postgres',
+        'PASSWORD': 'postgres',
+        'HOST': 'postgis',
         'PORT': '5432',
     }
 }
